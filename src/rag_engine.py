@@ -4,11 +4,11 @@ from src.config import Config
 
 
 class RAGEngine:
-    def __init__(self, model_name: str = Config.OLLAMA_MODEL, language: str = "auto"):
-        self.model_name = model_name
-        self.language = language
+    def __init__(self):
+        self.model_name = Config.MODEL_NAME
+        self.temperature = Config.TEMPERATURE
+        self.language = Config.DEFAULT_LANGUAGE
 
-        # Prompt sistemico robusto e API-friendly
         self.base_prompt = """
 You are a deterministic Steam game database assistant.
 You must follow these strict rules:
@@ -21,15 +21,21 @@ You must follow these strict rules:
    Never invent titles. Only use items present in CONTEXT DATA.
 
 3. NO MATCHES:
-   If no valid games exist, output exactly:
+   If and only if CONTEXT DATA is completely empty, output exactly:
    "Nessun gioco trovato per questa categoria specifica".
 
-4. FORMAT:
+4. IF CONTEXT EXISTS:
+   - NEVER include the sentence "Nessun gioco trovato per questa categoria specifica".
+   - NEVER add notes, warnings, or fallback messages.
+   - NEVER explain that some games may not fully match.
+   - Simply return EXACTLY 5 valid games from the provided CONTEXT DATA.
+
+5. FORMAT:
    Provide EXACTLY 5 bullet points.
    Format each as:
    **NAME** – CCU – short description.
 
-5. OUTPUT:
+6. OUTPUT:
    Your final answer MUST be clean, structured, and in Markdown.
 """
 
@@ -37,22 +43,21 @@ You must follow these strict rules:
         self.language = lang
 
     def generate_answer(self, query: str, context_chunks: List[str]) -> str:
-        """
-        Genera una risposta formattata in Markdown.
-        Perfetta per interfaccia grafica o API.
-        """
+        has_context = len(context_chunks) > 0
 
         prompt = self.base_prompt.replace("{LANG}", self.language)
+
+        if has_context:
+            prompt += "\nCONTEXT IS NOT EMPTY: YOU MUST RETURN GAMES.\n"
+
         context = "\n\n".join(context_chunks)
 
         user_prompt = (
             f"{prompt}\n\n"
-            f"### 📘 CONTEXT DATA\n"
-            f"{context}\n\n"
-            f"### ❓ USER QUESTION\n"
-            f"{query}\n\n"
+            f"### 📘 CONTEXT DATA\n{context}\n\n"
+            f"### ❓ USER QUESTION\n{query}\n\n"
             f"### 🧠 TASK\n"
-            f"Produce una risposta pulita, formattata, senza aggiungere testo superfluo."
+            f"Produce una risposta pulita, formattata, senza note, commenti o avvisi aggiuntivi."
         )
 
         try:
@@ -60,12 +65,12 @@ You must follow these strict rules:
                 model=self.model_name,
                 messages=[
                     {"role": "system", "content": prompt},
-                    {"role": "user", "content": user_prompt}
+                    {"role": "user", "content": user_prompt},
                 ],
-                options={"temperature": 0.0}
+                options={"temperature": self.temperature},
             )
 
             return response["message"]["content"].strip()
 
         except Exception as e:
-            return f"⚠️ Errore di connessione a Ollama: {e}"
+            return f"⚠️ Errore Ollama: {e}"

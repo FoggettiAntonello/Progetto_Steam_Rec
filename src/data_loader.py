@@ -2,57 +2,34 @@ import requests
 import time
 import logging
 from typing import List, Dict
+from src.config import Config
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+
 class SteamDataLoader:
     def __init__(self):
-        self.raw_data = []
+        self.raw_data: List[Dict] = []
         self.base_url = "https://steamspy.com/api.php"
-        
-        self.default_categories = [
-            "FPS", "RPG", "Strategy", "Simulation", "Action",
-            "Fighting", "Sports", "Racing", "Horror", "Indie",
-            "Adventure", "Open World", "Puzzle", "Sci-fi", "Co-op",
-            "Multiplayer", "Survival", "Battle Royale", "MMORPG",
-            "Platformer", "Roguelike", "Roguelite", "Metroidvania",
-            "Soulslike", "Card Game", "Soccer", "Football",
-            "Basketball"
-        ]
-        
-        self.tag_translations = {
-            "FPS": "Sparatutto in prima persona",
-            "RPG": "Gioco di ruolo",
-            "Strategy": "Strategia",
-            "Simulation": "Simulazione",
-            "Action": "Azione",
-            "Fighting": "Picchiaduro",
-            "Sports": "Sportivo",
-            "Racing": "Corse",
-            "Horror": "Orrore",
-            "Adventure": "Avventura",
-            "Survival": "Sopravvivenza",
-            "Soccer": "Calcio",
-            "Football": "Calcio",
-            "Roguelike": "Roguelike",
-            "Roguelite": "Roguelite",
-            "Card Game": "Gioco di carte"
-        }
+
+        # Presi da Config (che legge da YAML)
+        self.default_categories = Config.DEFAULT_CATEGORIES
+        self.tag_translations = Config.TAG_TRANSLATIONS
 
     def fetch_data(self, target_categories: List[str] = None) -> List[Dict]:
         categories_to_fetch = target_categories if target_categories else self.default_categories
-        
+
         print(f"--- [Extract] Fetching categories: {categories_to_fetch} ---")
-        all_games = {}
+        all_games: Dict[int, Dict] = {}
 
         for category in categories_to_fetch:
-            print(f"   -> Tag: {category}")
             try:
                 url = f"{self.base_url}?request=tag&tag={category}"
                 response = requests.get(url)
 
                 if response.status_code != 200:
+                    logger.error(f"SteamSpy error {response.status_code} for tag {category}")
                     continue
 
                 data = response.json()
@@ -87,28 +64,28 @@ class SteamDataLoader:
                                 f"Developer: {game.get('developer')}. "
                                 f"Active players: {game.get('ccu')}. "
                                 f"Score: {game.get('userscore')}/100."
-                            )
+                            ),
                         }
                     else:
-                        all_games[appid]["description"] += f" Also tagged: {category}."
+                        all_games[appid]["description"] += f" Also: {category}"
 
                 time.sleep(1)
 
             except Exception as e:
-                logger.error(f"Error: {e}")
+                logger.error(f"Error while fetching {category}: {e}")
 
         self.raw_data = list(all_games.values())
         print(f"--- Extracted {len(self.raw_data)} games ---")
         return self.raw_data
 
     def process_to_documents(self) -> List[str]:
-        docs = []
+        docs: List[str] = []
 
         for item in self.raw_data:
             try:
                 price_val = float(item["price"]) / 100
                 price = "Free" if price_val == 0 else f"{price_val:.2f}$"
-            except:
+            except Exception:
                 price = "N/A"
 
             text = (
@@ -119,7 +96,6 @@ class SteamDataLoader:
                 f"Description: {item['description']}\n"
                 f"Price: {price}"
             )
-
             docs.append(text)
 
         return docs
