@@ -1,0 +1,24 @@
+[build-system]
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "steam-rag-app"
+version = "0.1.0"
+description = "RAG Application for SteamDB analytics using Ollama"
+authors = [
+    {name = "Tu", email = "tuo@email.com"},
+]
+dependencies = [
+    "chromadb>=0.4.0",
+    "ollama>=0.1.6",
+    "sentence-transformers>=2.2.2",
+    "pandas>=2.0.0",
+    "tqdm>=4.66.0",
+    "requests>=2.31.0"
+]
+requires-python = ">=3.10"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["src*"]

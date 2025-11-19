@@ -1,0 +1,30 @@
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Virtual environments
+.venv/
+env/
+venv/
+
+# ChromaDB database (auto generated)
+chroma_db/
+
+# Build / packaging files
+*.egg-info/
+dist/
+build/
+
+# System files
+.DS_Store
+Thumbs.db
+
+# IDE configs
+.vscode/
+.idea/
+
+# Logs
+*.log
+logs/
